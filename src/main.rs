@@ -1,8 +1,7 @@
 use std::fmt;
 use std::sync::{Mutex,Arc};
-use hyper::Server;
-use hyper::{Body,Error,Method,Request,Response,Serve,StatusCode};
-use hyper::service::Service_fn;
+use hyper::{Body,Error,Method,Request,Response,Server,StatusCode};
+use hyper::service::service_fn;
 use lazy_static::lazy_static;
 use slab::Slab;
 use futures::{future,Future};
@@ -20,40 +19,40 @@ const INDEX: &str = r#"
 </html>
 "#;
 
+
+type UserId = u64;
+struct UserData;
+type UserDb = Arc<Mutex<Slab<UserData>>>;
+
+impl fmt::Display for UserData {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.write_str("{}")
+	}
+}
+
 lazy_static! {
 	static ref INDEX_PATH : Regex = Regex::new("^/(index\\.html?)?$").unwrap();
 	static ref USER_PATH: Regex = Regex::new("^/user/((?P<user_id>\\d+?/?)?$").unwrap();
 	static ref USERS_PATH: Regex = Regex::new("^/users/?$").unwrap();
 }
 
-type UserId = u64;
-struct UserData;
-type UserDb = Arc<Mutex<Slab<user_data>>>;
+fn microservice_handler (req: Request<Body>, db: &UserDb) 
+   -> impl Future<Item = Response<Body>,Error = Error> 
+   {
+   	let r = Response::new(INDEX.into());
+   future::ok(r)	
+   }
 
-impl fmt::Display for UserData {
-	fn fmt(&self, f: &mut fmt::formatter) -> fmt::result {
-		f.write_str("{}")
-	}
-}
-
-fn main(){
+fn main() {
 	let address = ([127,0,0,1],6000).into();
-	let builder = Server::bind(address);
+	let builder = Server::bind(&address);
 	let db = Arc::new(Mutex::new(Slab::new()));
-	let server = builder.serve(move ||{
+	let server = builder.serve(move || {
 		let db = db.clone();
-		Service_fn(move |req|{
-			microservice_handler(req: Request, &db: UserDb)
+		service_fn(move |req| microservice_handler(req , &db))
 		});
 	let server = server.map_err(drop);
 	hyper::rt::run(server);
 
-
-
-
-
-
-	})
-} 
-
+	}
 
